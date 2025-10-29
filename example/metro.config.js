@@ -27,6 +27,11 @@ module.exports = {
       acc[name] = path.join(__dirname, 'node_modules', name);
       return acc;
     }, {}),
+
+    nodeModulesPaths: [
+      path.resolve(__dirname, 'node_modules'),
+      path.resolve(root, 'node_modules'),
+    ],
   },
 
   transformer: {

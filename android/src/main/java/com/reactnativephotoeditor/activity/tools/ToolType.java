@@ -10,5 +10,7 @@ public enum ToolType {
   ERASER,
   FILTER,
   TEXT,
-  STICKER
+  STICKER,
+  CROP,
+  ROTATE
 }

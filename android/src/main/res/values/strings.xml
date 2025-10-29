@@ -12,6 +12,8 @@
   <string name="label_text">Text</string>
   <string name="label_filter">Filter</string>
   <string name="label_adjust">Adjust</string>
+  <string name="label_crop">Crop</string>
+  <string name="label_rotate">Rotate</string>
   <string name="msg_save_image">Are you want to exit without saving image ?</string>
   <string name="app_intent_name">PhotoEditor</string>
   <string name="msg_save_image_to_share">Please save image to share</string>

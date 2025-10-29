@@ -8,7 +8,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -20,6 +23,8 @@ import android.view.animation.AnticipateOvershootInterpolator
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.NonNull
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -47,6 +52,7 @@ import com.reactnativephotoeditor.activity.filters.FilterViewAdapter
 import com.reactnativephotoeditor.activity.tools.EditingToolsAdapter
 import com.reactnativephotoeditor.activity.tools.EditingToolsAdapter.OnItemSelected
 import com.reactnativephotoeditor.activity.tools.ToolType
+import com.yalantis.ucrop.UCrop
 import ja.burhanrashid52.photoeditor.*
 import ja.burhanrashid52.photoeditor.PhotoEditor.OnSaveListener
 import ja.burhanrashid52.photoeditor.shape.ShapeBuilder
@@ -72,6 +78,24 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
   private var mRootView: ConstraintLayout? = null
   private val mConstraintSet = ConstraintSet()
   private var mIsFilterVisible = false
+  private var mCurrentImageUri: Uri? = null
+
+  private val cropImageLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
+    ActivityResultContracts.StartActivityForResult()
+  ) { result ->
+    if (result.resultCode == RESULT_OK && result.data != null) {
+      val resultUri = UCrop.getOutput(result.data!!)
+      if (resultUri != null) {
+        mCurrentImageUri = resultUri
+        Glide.with(this).load(resultUri).into(mPhotoEditorView!!.source)
+      }
+    } else if (result.resultCode == UCrop.RESULT_ERROR) {
+      val cropError = UCrop.getError(result.data!!)
+      cropError?.let {
+        Snackbar.make(mPhotoEditorView!!, "Crop error: ${it.message}", Snackbar.LENGTH_SHORT).show()
+      }
+    }
+  }
 
   @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,6 +143,9 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
       .build() // build photo editor sdk
     mPhotoEditor?.setOnPhotoEditorListener(this)
 //    val drawable = Drawable.cre
+
+    // Store the initial image URI for crop functionality
+    mCurrentImageUri = Uri.parse(path)
 
     Glide
       .with(this)
@@ -236,6 +263,10 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
 
   override fun onStopViewChangeListener(viewType: ViewType) {
     Log.d(TAG, "onStopViewChangeListener() called with: viewType = [$viewType]")
+  }
+
+  override fun onTouchSourceImage(event: android.view.MotionEvent) {
+    Log.d(TAG, "onTouchSourceImage() called with: event = [$event]")
   }
 
   @SuppressLint("NonConstantResourceId")
@@ -378,6 +409,14 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
         showFilter(true)
       }
       ToolType.STICKER -> showBottomSheetDialogFragment(mStickerFragment)
+      ToolType.CROP -> {
+        mTxtCurrentTool!!.setText(R.string.label_crop)
+        startCropActivity()
+      }
+      ToolType.ROTATE -> {
+        mTxtCurrentTool!!.setText(R.string.label_rotate)
+        rotateImage()
+      }
     }
   }
 
@@ -413,6 +452,48 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
     changeBounds.interpolator = AnticipateOvershootInterpolator(1.0f)
     TransitionManager.beginDelayedTransition(mRootView!!, changeBounds)
     mConstraintSet.applyTo(mRootView)
+  }
+
+  private fun startCropActivity() {
+    mCurrentImageUri?.let { sourceUri ->
+      val destinationUri = Uri.fromFile(File(cacheDir, "cropped_${System.currentTimeMillis()}.jpg"))
+      val uCrop = UCrop.of(sourceUri, destinationUri)
+        .withAspectRatio(0f, 0f) // Free aspect ratio
+        .withMaxResultSize(2000, 2000)
+
+      cropImageLauncher.launch(uCrop.getIntent(this))
+    }
+  }
+
+  private fun rotateImage() {
+    mPhotoEditorView?.source?.let { imageView ->
+      val drawable = imageView.drawable
+      if (drawable is BitmapDrawable) {
+        val bitmap = drawable.bitmap
+        // Rotate the bitmap 90 degrees clockwise
+        val matrix = Matrix()
+        matrix.postRotate(90f)
+        val rotatedBitmap = Bitmap.createBitmap(
+          bitmap,
+          0,
+          0,
+          bitmap.width,
+          bitmap.height,
+          matrix,
+          true
+        )
+
+        // Save rotated bitmap to cache and update the image URI
+        val rotatedFile = File(cacheDir, "rotated_${System.currentTimeMillis()}.jpg")
+        rotatedFile.outputStream().use { out ->
+          rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
+        }
+        mCurrentImageUri = Uri.fromFile(rotatedFile)
+
+        // Update the image view with rotated bitmap
+        Glide.with(this).load(rotatedFile).into(imageView)
+      }
+    }
   }
 
   override fun onBackPressed() {
