@@ -95,6 +95,32 @@ const result = await PhotoEditor.open(Options);
 | -------- | :----: | :-----------: | :------: | :--------------- |
 | path      | string |   required    |   both   | Local/remote image path |
 | [stickers](#stickers-)      | Array<String> |   []    |   both   | An array of paths containing sticker images |
+| [successDialog](#success-dialog-)      | Object |   see below    |   both   | Customize or disable the success dialog shown after saving |
+
+### Success Dialog 🎉
+
+You can customize the success dialog that appears after saving an image, or disable it entirely:
+
+```js
+const result = await PhotoEditor.open({
+  path: imagePath,
+  stickers: [],
+  successDialog: {
+    enabled: true,              // Set to false to disable the dialog
+    title: "Success",           // Custom title
+    message: "Image saved!",    // Custom message
+    buttonText: "OK"            // Custom button text
+  }
+});
+```
+
+**Default values:**
+- `enabled`: `true`
+- `title`: `"Success"`
+- `message`: `"Image saved successfully!"`
+- `buttonText`: `"OK"`
+
+**Note:** When the success dialog is shown, the editor stays open after saving. Users can continue editing or manually close the editor.
 
 ## Filters 🌈
 | iOS | Android |

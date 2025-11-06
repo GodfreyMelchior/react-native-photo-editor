@@ -31,9 +31,23 @@ class PhotoEditorModule(reactContext: ReactApplicationContext) : ReactContextBas
 
     val path = options?.getString("path")
     val stickers = options?.getArray("stickers") as ReadableArray
+    val successDialog = options?.getMap("successDialog")
 
     intent.putExtra("path", path)
     intent.putExtra("stickers", stickers.toArrayList())
+
+    // Pass success dialog options
+    if (successDialog != null) {
+      intent.putExtra("successDialogEnabled", if (successDialog.hasKey("enabled")) successDialog.getBoolean("enabled") else true)
+      intent.putExtra("successDialogTitle", if (successDialog.hasKey("title")) successDialog.getString("title") else "Success")
+      intent.putExtra("successDialogMessage", if (successDialog.hasKey("message")) successDialog.getString("message") else "Image saved successfully!")
+      intent.putExtra("successDialogButtonText", if (successDialog.hasKey("buttonText")) successDialog.getString("buttonText") else "OK")
+    } else {
+      intent.putExtra("successDialogEnabled", true)
+      intent.putExtra("successDialogTitle", "Success")
+      intent.putExtra("successDialogMessage", "Image saved successfully!")
+      intent.putExtra("successDialogButtonText", "OK")
+    }
 
     activity.startActivityForResult(intent, EDIT_SUCCESSFUL)
   }

@@ -3,6 +3,12 @@ import { NativeModules } from 'react-native';
 export type Options = {
   path: String;
   stickers: Array<String>;
+  successDialog?: {
+    enabled?: boolean;
+    title?: string;
+    message?: string;
+    buttonText?: string;
+  };
 };
 
 export type ErrorCode =

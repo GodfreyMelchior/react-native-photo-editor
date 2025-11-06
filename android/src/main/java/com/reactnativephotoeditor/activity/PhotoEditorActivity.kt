@@ -79,6 +79,10 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
   private val mConstraintSet = ConstraintSet()
   private var mIsFilterVisible = false
   private var mCurrentImageUri: Uri? = null
+  private var mSuccessDialogEnabled = true
+  private var mSuccessDialogTitle = "Success"
+  private var mSuccessDialogMessage = "Image saved successfully!"
+  private var mSuccessDialogButtonText = "OK"
 
   private val cropImageLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
     ActivityResultContracts.StartActivityForResult()
@@ -111,6 +115,12 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
       value?.getStringArrayList("stickers")?.plus(
         assets.list("Stickers")!!
           .map { item -> "/android_asset/Stickers/$item" }) as ArrayList<String>
+
+    // Get success dialog options from intent
+    mSuccessDialogEnabled = value?.getBoolean("successDialogEnabled", true) ?: true
+    mSuccessDialogTitle = value?.getString("successDialogTitle") ?: "Success"
+    mSuccessDialogMessage = value?.getString("successDialogMessage") ?: "Image saved successfully!"
+    mSuccessDialogButtonText = value?.getString("successDialogButtonText") ?: "OK"
 //    println("stickers: $stickers ${stickers.size}")
 //    for (stick in stickers) {
 //      print("stick: $stickers")
@@ -308,10 +318,7 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
       mPhotoEditor!!.saveAsFile(file.absolutePath, object : OnSaveListener {
         override fun onSuccess(@NonNull imagePath: String) {
           hideLoading()
-          val intent = Intent()
-          intent.putExtra("path", imagePath)
-          setResult(ResponseCode.RESULT_OK, intent)
-          finish()
+          showSuccessDialog(imagePath)
         }
 
         override fun onFailure(@NonNull exception: Exception) {
@@ -493,6 +500,25 @@ open class PhotoEditorActivity : AppCompatActivity(), OnPhotoEditorListener, Vie
         // Update the image view with rotated bitmap
         Glide.with(this).load(rotatedFile).into(imageView)
       }
+    }
+  }
+
+  private fun showSuccessDialog(imagePath: String) {
+    // Save the result
+    val intent = Intent()
+    intent.putExtra("path", imagePath)
+    setResult(ResponseCode.RESULT_OK, intent)
+
+    // Only show dialog if enabled
+    if (mSuccessDialogEnabled) {
+      val builder = AlertDialog.Builder(this)
+      builder.setTitle(mSuccessDialogTitle)
+      builder.setMessage(mSuccessDialogMessage)
+      builder.setPositiveButton(mSuccessDialogButtonText) { dialog: DialogInterface, _: Int ->
+        dialog.dismiss()
+      }
+      builder.setCancelable(false)
+      builder.create().show()
     }
   }
 

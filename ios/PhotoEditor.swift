@@ -20,9 +20,14 @@ public enum ImageLoad: Error {
 class PhotoEditor: NSObject, ZLEditImageControllerDelegate {
     var window: UIWindow?
     var bridge: RCTBridge!
-    
+
     var resolve: RCTPromiseResolveBlock!
     var reject: RCTPromiseRejectBlock!
+
+    var successDialogEnabled: Bool = true
+    var successDialogTitle: String = "Success"
+    var successDialogMessage: String = "Image saved successfully!"
+    var successDialogButtonText: String = "OK"
     
     @objc(open:withResolver:withRejecter:)
     func open(options: NSDictionary, resolve:@escaping RCTPromiseResolveBlock,reject:@escaping RCTPromiseRejectBlock) -> Void {
@@ -51,7 +56,15 @@ class PhotoEditor: NSObject, ZLEditImageControllerDelegate {
     private func setConfiguration(options: NSDictionary, resolve:@escaping RCTPromiseResolveBlock,reject:@escaping RCTPromiseRejectBlock) -> Void{
         self.resolve = resolve;
         self.reject = reject;
-        
+
+        // Success dialog options
+        if let successDialog = options["successDialog"] as? NSDictionary {
+            self.successDialogEnabled = successDialog["enabled"] as? Bool ?? true
+            self.successDialogTitle = successDialog["title"] as? String ?? "Success"
+            self.successDialogMessage = successDialog["message"] as? String ?? "Image saved successfully!"
+            self.successDialogButtonText = successDialog["buttonText"] as? String ?? "OK"
+        }
+
         // Stickers
         let stickers = options["stickers"] as? [String] ?? []
         ZLImageEditorConfiguration.default().imageStickerContainerView = StickerView(stickers: stickers)
@@ -74,19 +87,37 @@ class PhotoEditor: NSObject, ZLEditImageControllerDelegate {
     private func presentController(image: UIImage) {
         if let controller = UIApplication.getTopViewController() {
             controller.modalTransitionStyle = .crossDissolve
-            
+
             ZLEditImageViewController.showEditImageVC(parentVC:controller , image: image, delegate: self) { [weak self] (resImage, editModel) in
+                guard let self = self else { return }
+
                 let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] as String
-                
+
                 let destinationPath = URL(fileURLWithPath: documentsPath).appendingPathComponent(String(Int64(Date().timeIntervalSince1970 * 1000)) + ".png")
-                
+
                 do {
                     try resImage.pngData()?.write(to: destinationPath)
-                    self?.resolve(destinationPath.absoluteString)
+
+                    // Show success dialog if enabled
+                    if self.successDialogEnabled {
+                        self.showSuccessDialog(imagePath: destinationPath.absoluteString)
+                    } else {
+                        self.resolve(destinationPath.absoluteString)
+                    }
                 } catch {
                     debugPrint("writing file error", error)
                 }
             }
+        }
+    }
+
+    private func showSuccessDialog(imagePath: String) {
+        if let controller = UIApplication.getTopViewController() {
+            let alert = UIAlertController(title: self.successDialogTitle, message: self.successDialogMessage, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: self.successDialogButtonText, style: .default, handler: { [weak self] _ in
+                self?.resolve(imagePath)
+            }))
+            controller.present(alert, animated: true, completion: nil)
         }
     }
     
